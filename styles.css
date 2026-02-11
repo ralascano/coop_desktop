@@ -1,0 +1,37 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background: #1e1e2f;
+  color: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar button {
+  margin-top: 10px;
+  padding: 10px;
+  border: none;
+  background: #2d2d44;
+  color: white;
+  cursor: pointer;
+}
+
+.sidebar button:hover {
+  background: #3d3d5c;
+}
+
+main {
+  flex: 1;
+  padding: 20px;
+  background: #f4f4f4;
+}
