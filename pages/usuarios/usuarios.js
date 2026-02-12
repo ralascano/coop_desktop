@@ -2,10 +2,55 @@ export function initUsuarios() {
   const btnGuardar = document.getElementById("btnGuardar");
   const btnCancelar = document.getElementById("btnCancelar");
 
-  btnGuardar.addEventListener("click", guardar);
-  btnCancelar.addEventListener("click", limpiarFormulario);
+  const modalElement = document.getElementById("modalUsuario");
+  const btnAbrir = document.getElementById("btnAbrirModal");
+  const modal = new bootstrap.Modal(modalElement);
+
+  // 🔥 Modal de eliminación
+  const modalEliminarElement = document.getElementById("modalEliminar");
+  const modalEliminar = new bootstrap.Modal(modalEliminarElement);
+
+  let usuarioAEliminar = null; // 🔥 guardamos temporalmente el id a eliminar
+
+  btnAbrir.addEventListener("click", () => {
+    modal.show();
+  });
+
+  // 🔥 Guardar con cierre automático si todo sale bien
+  btnGuardar.addEventListener("click", async () => {
+    const ok = await guardar();
+
+    if (ok) {
+      modal.hide();
+      limpiarFormulario();
+      refrescarLista();
+    }
+  });
+
+  btnCancelar.addEventListener("click", () => {
+    limpiarFormulario();
+    modal.hide();
+  });
+
+  // 🔥 Confirmación de eliminación
+  document
+    .getElementById("btnConfirmarEliminar")
+    .addEventListener("click", async () => {
+      if (usuarioAEliminar) {
+        await window.api.eliminarUsuario(Number(usuarioAEliminar));
+        usuarioAEliminar = null;
+        modalEliminar.hide();
+        refrescarLista();
+      }
+    });
 
   refrescarLista();
+
+  // 🔥 hacemos accesible modalEliminar y setter al resto del módulo
+  window._modalEliminar = modalEliminar;
+  window._setUsuarioAEliminar = (id) => {
+    usuarioAEliminar = id;
+  };
 }
 
 async function refrescarLista() {
@@ -15,18 +60,18 @@ async function refrescarLista() {
   tbody.innerHTML = usuarios
     .map(
       (u) => `
-      <tr>
-        <td>${u.id}</td>
-        <td>${u.nombre}</td>
-        <td>${u.apellido}</td>
-        <td>${u.cedula}</td>
-        <td>${u.rol}</td>
-        <td>
-          <button data-id="${u.id}" class="editar">Editar</button>
-          <button data-id="${u.id}" class="eliminar">Eliminar</button>
-        </td>
-      </tr>
-    `
+        <tr>
+          <td>${u.id}</td>
+          <td>${u.nombre}</td>
+          <td>${u.apellido}</td>
+          <td>${u.cedula}</td>
+          <td>${u.rol}</td>
+          <td>
+            <button data-id="${u.id}" class="editar btn btn-sm btn-warning">Editar</button>
+            <button data-id="${u.id}" class="eliminar btn btn-sm btn-danger">Eliminar</button>
+          </td>
+        </tr>
+      `
     )
     .join("");
 
@@ -39,16 +84,22 @@ function attachRowEvents(usuarios) {
       const id = btn.dataset.id;
       const usuario = usuarios.find((u) => u.id == id);
       cargarFormulario(usuario);
+
+      const modalElement = document.getElementById("modalUsuario");
+      const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+      modal.show();
     });
   });
 
   document.querySelectorAll(".eliminar").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const id = btn.dataset.id;
-      if (confirm("¿Eliminar usuario?")) {
-        await window.api.eliminarUsuario(Number(id));
-        refrescarLista();
-      }
+
+      // 🔥 guardamos el id en variable global temporal
+      window._setUsuarioAEliminar(id);
+
+      // 🔥 mostramos el modal
+      window._modalEliminar.show();
     });
   });
 }
@@ -64,31 +115,35 @@ async function guardar() {
 
   if (!nombre || !apellido || !cedula || !rol) {
     alert("Campos obligatorios");
-    return;
+    return false;
   }
 
-  if (id) {
-    await window.api.actualizarUsuario({
-      id: Number(id),
-      nombre,
-      apellido,
-      telefono,
-      direccion,
-      rol,
-    });
-  } else {
-    await window.api.guardarUsuario({
-      nombre,
-      apellido,
-      cedula,
-      telefono,
-      direccion,
-      rol,
-    });
-  }
+  try {
+    if (id) {
+      await window.api.actualizarUsuario({
+        id: Number(id),
+        nombre,
+        apellido,
+        telefono,
+        direccion,
+        rol,
+      });
+    } else {
+      await window.api.guardarUsuario({
+        nombre,
+        apellido,
+        cedula,
+        telefono,
+        direccion,
+        rol,
+      });
+    }
 
-  limpiarFormulario();
-  refrescarLista();
+    return true;
+  } catch (error) {
+    console.error("Error guardando usuario:", error);
+    return false;
+  }
 }
 
 function cargarFormulario(usuario) {
